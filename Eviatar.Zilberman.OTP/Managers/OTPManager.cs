@@ -5,8 +5,10 @@ using securelogic.otp.Enums;
 
 namespace securelogic.otp.core
 {
-    public sealed class OTPManager : MongoDBServiceManager<OTP>
+    public sealed class OTPManager
     {
+        private static string DataBaseName = "OTP_DB";
+        private static string CollectionName = "OTPs";
         private const string Upper = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
         private const string Lower = "abcdefghijklmnopqrstuvwxyz";
         private const string Digits = "0123456789";
@@ -20,14 +22,14 @@ namespace securelogic.otp.core
         private static Types[] DefaultChars = new Types[1] { Types.LowerCase };
         private static int AddHours = 3;
 
-        public OTPManager(string collectionName, string dbName) : base(dbName, collectionName) { }
+        public OTPManager() { }
 
-        public override string GetCollectionName()
+        public string GetCollectionName()
         {
             return "OTPs";
         }
 
-        public static void Init(int validityInSeconds = 600, int otpLength = 6, int upperAmount = 1, int lowerAmount = 1, int digitAmount = 1, int specialAmount = 1, int addHours = 3, Types[]? defaultChars = null)
+        public static void Init(string? dbName = null, string? collectionName = null, int validityInSeconds = 600, int otpLength = 6, int upperAmount = 1, int lowerAmount = 1, int digitAmount = 1, int specialAmount = 1, int addHours = 3, Types[]? defaultChars = null)
         {
             ValidityInSeconds = validityInSeconds;
             CodeLength = otpLength;
@@ -37,6 +39,8 @@ namespace securelogic.otp.core
             SpecialAmount = specialAmount;
             AddHours = addHours;
             if (defaultChars != null) DefaultChars = defaultChars;
+            if (!string.IsNullOrEmpty(dbName)) DataBaseName = dbName;
+            if (!string.IsNullOrEmpty(collectionName)) CollectionName = collectionName;
         }
 
         public OTP Generate(string userNamedId)
@@ -64,7 +68,7 @@ namespace securelogic.otp.core
             //otp!.Status = (int)OTPStatus.Used;
             //otp!.Complete = DateTime.Now;
             //this.Update(otp);
-            if (otp != null) this.Delete(otp.Id);
+            MongoDBServiceManager<OTP>.Instance(DataBaseName, CollectionName).Delete(otp.Id);
             return res;
         }
 
@@ -72,7 +76,7 @@ namespace securelogic.otp.core
         {
             string field = nameof(OTP.UserNamedId);
             FilterDefinition<OTP> filter = FilterCreator<OTP>.CreateEqualFilter(field, userNamedId);
-            this.Get(filter, out OTP? item);
+            MongoDBServiceManager<OTP>.Instance(DataBaseName, CollectionName).Get(filter, out OTP? item);
             if (item != null) return item;
             return null;
         }
@@ -90,7 +94,7 @@ namespace securelogic.otp.core
 
         private bool Validate(string value, string userNamedId, out OTP? otp)
         {
-            OTP item = this.GetByUserNamedId(userNamedId);
+            OTP? item = this.GetByUserNamedId(userNamedId);
             if (item == null)
             {
                 otp = null;
