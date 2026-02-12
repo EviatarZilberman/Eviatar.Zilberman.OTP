@@ -5,10 +5,8 @@ using securelogic.otp.Enums;
 
 namespace securelogic.otp.core
 {
-    public sealed class OTPManager
+    public sealed class OTPManager : MongoDBServiceManager<OTP>
     {
-        private static string DataBaseName = "OTP_DB";
-        private static string CollectionName = "OTPs";
         private const string Upper = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
         private const string Lower = "abcdefghijklmnopqrstuvwxyz";
         private const string Digits = "0123456789";
@@ -24,12 +22,12 @@ namespace securelogic.otp.core
 
         public OTPManager() { }
 
-        public string GetCollectionName()
+        public new string GetCollectionName()
         {
-            return "OTPs";
+            return "otps";
         }
 
-        public static void Init(string? dbName = null, string? collectionName = null, int validityInSeconds = 600, int otpLength = 6, int upperAmount = 1, int lowerAmount = 1, int digitAmount = 1, int specialAmount = 1, int addHours = 3, Types[]? defaultChars = null)
+        public static void Init(string? dbName = null, int validityInSeconds = 600, int otpLength = 6, int upperAmount = 1, int lowerAmount = 1, int digitAmount = 1, int specialAmount = 1, int addHours = 3, Types[]? defaultChars = null)
         {
             ValidityInSeconds = validityInSeconds;
             CodeLength = otpLength;
@@ -39,8 +37,6 @@ namespace securelogic.otp.core
             SpecialAmount = specialAmount;
             AddHours = addHours;
             if (defaultChars != null) DefaultChars = defaultChars;
-            if (!string.IsNullOrEmpty(dbName)) DataBaseName = dbName;
-            if (!string.IsNullOrEmpty(collectionName)) CollectionName = collectionName;
         }
 
         public OTP Generate(string userNamedId)
@@ -49,7 +45,7 @@ namespace securelogic.otp.core
             {
                 UserNamedId = userNamedId,
                 Value = GenerateValue(),
-                CreationDate = DateTime.Now.AddHours(AddHours)
+                CreationDate = DateTime.UtcNow.AddHours(AddHours)
             };
             return otp;
         }
@@ -68,18 +64,11 @@ namespace securelogic.otp.core
             //otp!.Status = (int)OTPStatus.Used;
             //otp!.Complete = DateTime.Now;
             //this.Update(otp);
-            MongoDBServiceManager<OTP>.Instance(DataBaseName, CollectionName).Delete(otp.Id);
+            this.Delete(otp!.Id);
             return res;
         }
 
-        public OTP? GetByUserNamedId(string userNamedId)
-        {
-            string field = nameof(OTP.UserNamedId);
-            FilterDefinition<OTP> filter = FilterCreator<OTP>.CreateEqualFilter(field, userNamedId);
-            MongoDBServiceManager<OTP>.Instance(DataBaseName, CollectionName).Get(filter, out OTP? item);
-            if (item != null) return item;
-            return null;
-        }
+        public bool GetByUserNamedId(string userNamedId, out OTP item) => this.FindOneByProperty("UserNamedId", userNamedId, out item);
 
         private string GenerateValue()
         {
@@ -94,25 +83,19 @@ namespace securelogic.otp.core
 
         private bool Validate(string value, string userNamedId, out OTP? otp)
         {
-            OTP? item = this.GetByUserNamedId(userNamedId);
-            if (item == null)
+            if (!this.GetByUserNamedId(userNamedId, out otp)) return false;
+            if (otp.Value == value)
             {
-                otp = null;
-                return false;
-            }
-            if (item.Value == value)
-            {
-                DateTime dt = item.CreationDate.AddSeconds(ValidityInSeconds);
+                DateTime dt = otp.CreationDate.AddSeconds(ValidityInSeconds);
                 if (dt >= DateTime.Now)
                 {
-                    if (item.Status == (int)OTPStatus.Ready)
+                    if (otp.Status == (int)OTPStatus.Ready)
                     {
-                        otp = item;
                         return true;
                     }
                 }
             }
-            otp = null;
+            otp = new OTP();
             return false;
         }
 
