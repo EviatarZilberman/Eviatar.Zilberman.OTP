@@ -64,11 +64,11 @@ namespace securelogic.otp.core
             //otp!.Status = (int)OTPStatus.Used;
             //otp!.Complete = DateTime.Now;
             //this.Update(otp);
-            this.Delete(otp!.Id);
+            this.Delete(this.GetCollectionName(), otp!.Id);
             return res;
         }
 
-        public bool GetByUserNamedId(string userNamedId, out OTP item) => this.FindOneByProperty("UserNamedId", userNamedId, out item);
+        public bool GetByUserNamedId(string userNamedId, out OTP item) => this.FindOneByProperty(this.GetCollectionName(), "UserNamedId", userNamedId, out item);
 
         private string GenerateValue()
         {
