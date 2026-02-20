@@ -5,7 +5,7 @@ using securelogic.otp.Enums;
 
 namespace securelogic.otp.core
 {
-    public sealed class OTPManager : MongoDBServiceManager<OTP>
+    public sealed class OTPManager : MongoDBServiceManager
     {
         private const string Upper = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
         private const string Lower = "abcdefghijklmnopqrstuvwxyz";
@@ -64,7 +64,7 @@ namespace securelogic.otp.core
             //otp!.Status = (int)OTPStatus.Used;
             //otp!.Complete = DateTime.Now;
             //this.Update(otp);
-            this.Delete(this.GetCollectionName(), otp!.Id);
+            this.Delete<OTP>(this.GetCollectionName(), otp!.Id);
             return res;
         }
 
